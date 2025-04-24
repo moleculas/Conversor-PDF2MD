@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Resultado</title>
+    <link rel="stylesheet" href="https://api.fontshare.com/v2/css?f[]=satoshi@1,900,700,500,300,400&display=swap" />
+    <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+    <style>
+      .font-satoshi {
+        font-family: 'Satoshi', sans-serif;
+      }
+    </style>
+  </head>
+  <body class="bg-gray-50 font-satoshi">
+    <div class="max-w-4xl mx-auto p-6 md:p-8">
+      <header class="mb-8">
+        <h1 class="text-2xl font-bold text-gray-800">Conversión Completada</h1>
+      </header>
+      
+      <div class="bg-white rounded-lg shadow-md p-6 mb-8">
+        <div class="bg-green-50 border-l-4 border-green-600 p-4 mb-6">
+          <p class="text-green-700">¡El archivo PDF ha sido convertido exitosamente a Markdown!</p>
+        </div>
+        
+        <!-- Sección de parámetros utilizados -->
+        <div class="mb-6 bg-blue-50 p-4 rounded-md">
+          <h3 class="text-sm font-semibold text-gray-700 mb-2">Parámetros utilizados:</h3>
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-2 text-xs text-gray-600">
+            <div><span class="font-medium">Resolución (DPI):</span> {{ params.dpi }}</div>
+            <div><span class="font-medium">Umbral de confianza:</span> {{ params.conf_threshold }}%</div>
+            <div><span class="font-medium">Idioma:</span> 
+              {% if params.lang == "spa" %}Español{% endif %}
+              {% if params.lang == "eng" %}Inglés{% endif %}
+              {% if params.lang == "fra" %}Francés{% endif %}
+              {% if params.lang == "deu" %}Alemán{% endif %}
+              {% if params.lang == "ita" %}Italiano{% endif %}
+              {% if params.lang == "por" %}Portugués{% endif %}
+              {% if params.lang not in ["spa", "eng", "fra", "deu", "ita", "por"] %}{{ params.lang }}{% endif %}
+            </div>
+            {% if params.area %}
+            <div><span class="font-medium">Área procesada:</span> [{{ params.area[0] }}, {{ params.area[1] }}, {{ params.area[2] }}, {{ params.area[3] }}]</div>
+            {% endif %}
+          </div>
+        </div>
+        
+        <div class="flex flex-wrap gap-4 mb-8">
+          <a href="{{ download_link }}" class="inline-flex items-center px-4 py-2 bg-green-600 hover:bg-green-700 text-white font-medium rounded-lg transition duration-200">
+            <svg class="w-5 h-5 mr-2" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <path d="M12 16l-5-5h3V5h4v6h3l-5 5z" fill="currentColor"/>
+              <path d="M4 20v-1h16v1H4z" fill="currentColor"/>
+            </svg>
+            Descargar archivo Markdown
+          </a>
+          
+          <a href="/" class="inline-flex items-center px-4 py-2 bg-gray-200 hover:bg-gray-300 text-gray-800 font-medium rounded-lg transition duration-200">
+            <svg class="w-5 h-5 mr-2" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <path d="M12 4l-1.41 1.41L16.17 11H4v2h12.17l-5.58 5.59L12 20l8-8-8-8z" fill="currentColor"/>
+            </svg>
+            Convertir otro documento
+          </a>
+        </div>
+        
+        <div class="mt-10">
+          <h2 class="text-xl font-semibold text-gray-700 mb-4">Vista previa del contenido:</h2>
+          <div class="bg-gray-100 rounded-lg p-4 overflow-x-auto">
+            <pre class="whitespace-pre-wrap text-gray-800 font-mono text-sm">{{ markdown }}</pre>
+          </div>
+        </div>
+      </div>
+    </div>
+  </body>
+</html>

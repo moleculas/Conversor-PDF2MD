@@ -1,0 +1,20 @@
+# Dockerfile.web
+FROM python:3.11-slim
+
+# Variables de entorno
+ENV PYTHONUNBUFFERED=1
+
+WORKDIR /app
+
+# Dependencias de la web (FastAPI + Uvicorn + Jinja2)
+COPY web/requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt
+
+# Copiamos el código de la web
+COPY web/ .
+
+# Crear directorios para los archivos estáticos si no existen
+RUN mkdir -p static/css static/js
+
+# Levantamos UVicorn
+CMD ["uvicorn", "app:app", "--host", "0.0.0.0", "--port", "8000"]

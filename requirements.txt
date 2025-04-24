@@ -1,0 +1,8 @@
+ocrmypdf
+pdf2image
+pytesseract
+Pillow
+easyocr
+opencv-python-headless
+numpy
+PyPDF2

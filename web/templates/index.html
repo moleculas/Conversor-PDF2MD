@@ -1,0 +1,172 @@
+<!DOCTYPE html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PDF → MD</title>
+    <link rel="stylesheet" href="https://api.fontshare.com/v2/css?f[]=satoshi@1,900,700,500,300,400&display=swap" />
+    <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+    <style>
+      .font-satoshi {
+        font-family: 'Satoshi', sans-serif;
+      }
+    </style>
+  </head>
+  <body class="bg-gray-50 font-satoshi">
+    <div class="max-w-3xl mx-auto p-6 md:p-8">
+      <header class="mb-12">
+        <h1 class="text-3xl font-bold text-gray-800 mb-2">PDF → Markdown</h1>
+        <p class="text-gray-600">Convierte tus documentos PDF a formato Markdown con reconocimiento de texto</p>
+      </header>
+      
+      <div class="bg-white rounded-lg shadow-md p-6 mb-8">
+        <div class="mb-6">
+          <h2 class="text-xl font-semibold text-gray-700 mb-3">Sobre esta herramienta</h2>
+          <div class="text-gray-600 space-y-2">
+            <p>Esta herramienta convierte documentos PDF a formato Markdown mediante reconocimiento óptico de caracteres (OCR).</p>
+            <p>Características:</p>
+            <ul class="list-disc pl-5 space-y-1">
+              <li>Distingue entre texto impreso y manuscrito</li>
+              <li>Las áreas con texto manuscrito se marcan con <code class="bg-gray-100 px-1 py-0.5 rounded text-sm">&#91;texto manuscrito&#93;</code></li>
+              <li>Procesa documentos en español por defecto</li>
+            </ul>
+          </div>
+        </div>
+        
+        <form action="/convert" method="post" enctype="multipart/form-data" class="mt-8">
+          <div class="mb-6">
+            <label for="pdf-file" class="block mb-2 text-sm font-medium text-gray-700">Selecciona un archivo PDF</label>
+            <div class="flex items-center justify-center w-full">
+              <label for="pdf-file" class="flex flex-col items-center justify-center w-full h-32 border-2 border-gray-300 border-dashed rounded-lg cursor-pointer bg-gray-50 hover:bg-gray-100">
+                <div class="flex flex-col items-center justify-center pt-5 pb-6">
+                  <svg class="w-8 h-8 mb-3 text-gray-500" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 20 16">
+                    <path stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 13h3a3 3 0 0 0 0-6h-.025A5.56 5.56 0 0 0 16 6.5 5.5 5.5 0 0 0 5.207 5.021C5.137 5.017 5.071 5 5 5a4 4 0 0 0 0 8h2.167M10 15V6m0 0L8 8m2-2 2 2"/>
+                  </svg>
+                  <p class="mb-1 text-sm text-gray-500"><span class="font-semibold">Haz clic para subir</span> o arrastra y suelta</p>
+                  <p class="text-xs text-gray-500">PDF (MAX. 20MB)</p>
+                </div>
+                <input id="pdf-file" type="file" name="pdf" accept="application/pdf" class="hidden" required/>
+              </label>
+            </div>
+            <div id="file-name" class="mt-2 text-sm text-gray-600 hidden">
+              Archivo seleccionado: <span id="selected-file" class="font-medium"></span>
+            </div>
+          </div>
+          
+          <div class="mt-6">
+            <button type="button" id="toggle-advanced" class="text-blue-600 hover:text-blue-800 text-sm flex items-center" onclick="toggleAdvancedOptions()">
+              <svg class="w-4 h-4 mr-1 transform transition-transform" id="advanced-arrow" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <path d="M19 9l-7 7-7-7" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+              </svg>
+              Configuración avanzada
+            </button>
+            
+            <div id="advanced-options" class="hidden mt-4 p-4 bg-gray-50 rounded-md">
+              <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <!-- DPI -->
+                <div>
+                  <label for="dpi" class="block text-sm font-medium text-gray-700">Resolución (DPI)</label>
+                  <div class="mt-1 flex items-center">
+                    <input type="number" name="dpi" id="dpi" value="300" min="72" max="600" step="1"
+                          class="shadow-sm focus:ring-blue-500 focus:border-blue-500 block w-full sm:text-sm border-gray-300 rounded-md">
+                    <span class="ml-2 text-gray-500 text-sm">Mayor = mejor calidad pero más lento</span>
+                  </div>
+                </div>
+                
+                <!-- Umbral de confianza -->
+                <div>
+                  <label for="conf_threshold" class="block text-sm font-medium text-gray-700">Umbral de confianza (%)</label>
+                  <div class="mt-1 flex items-center">
+                    <input type="range" name="conf_threshold" id="conf_threshold" min="0" max="100" value="60" 
+                          class="w-full" oninput="updateConfidenceValue(this.value)">
+                    <span id="conf-value" class="ml-2 text-gray-700 text-sm">60%</span>
+                  </div>
+                  <p class="mt-1 text-xs text-gray-500">Menor umbral = menos áreas marcadas como manuscrito</p>
+                </div>
+                
+                <!-- Idioma -->
+                <div>
+                  <label for="lang" class="block text-sm font-medium text-gray-700">Idioma</label>
+                  <select name="lang" id="lang" class="mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm rounded-md">
+                    <option value="spa">Español</option>
+                    <option value="eng">Inglés</option>
+                    <option value="fra">Francés</option>
+                    <option value="deu">Alemán</option>
+                    <option value="ita">Italiano</option>
+                    <option value="por">Portugués</option>
+                  </select>
+                </div>
+                
+                <!-- Opciones de áreas -->
+                <div>
+                  <label for="process_areas" class="flex items-center text-sm font-medium text-gray-700">
+                    <input type="checkbox" id="process_areas" name="process_areas" class="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded">
+                    <span class="ml-2">Procesar solo área específica del PDF</span>
+                  </label>
+                  <div id="area-inputs" class="hidden mt-2 grid grid-cols-2 gap-2">
+                    <div>
+                      <label for="area_left" class="block text-xs text-gray-500">Izquierda</label>
+                      <input type="number" name="area_left" id="area_left" value="0" min="0" class="block w-full text-sm border-gray-300 rounded-md">
+                    </div>
+                    <div>
+                      <label for="area_top" class="block text-xs text-gray-500">Superior</label>
+                      <input type="number" name="area_top" id="area_top" value="0" min="0" class="block w-full text-sm border-gray-300 rounded-md">
+                    </div>
+                    <div>
+                      <label for="area_right" class="block text-xs text-gray-500">Derecha</label>
+                      <input type="number" name="area_right" id="area_right" value="0" min="0" class="block w-full text-sm border-gray-300 rounded-md">
+                    </div>
+                    <div>
+                      <label for="area_bottom" class="block text-xs text-gray-500">Inferior</label>
+                      <input type="number" name="area_bottom" id="area_bottom" value="0" min="0" class="block w-full text-sm border-gray-300 rounded-md">
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+          
+          <button type="submit" class="mt-6 w-full bg-blue-600 hover:bg-blue-700 text-white font-medium py-3 px-4 rounded-lg transition duration-200 flex items-center justify-center">
+            <svg class="w-5 h-5 mr-2" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <path d="M7 16a1 1 0 0 0 1 1h8a1 1 0 0 0 1-1V8h-2v7H9V8H7v8Z" fill="currentColor"/>
+              <path d="M12 4 8 8h3v7h2V8h3" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+            Convertir a Markdown
+          </button>
+        </form>
+      </div>
+      
+      <p class="text-xs text-gray-500 text-center">El procesamiento puede tomar desde unos segundos hasta varios minutos dependiendo del tamaño y complejidad del documento.</p>
+    </div>
+
+    <script>
+      document.getElementById('pdf-file').addEventListener('change', function(e) {
+        const fileName = document.getElementById('selected-file');
+        const fileNameContainer = document.getElementById('file-name');
+        
+        if (this.files && this.files.length > 0) {
+          fileName.textContent = this.files[0].name;
+          fileNameContainer.classList.remove('hidden');
+        } else {
+          fileNameContainer.classList.add('hidden');
+        }
+      });
+      
+      function toggleAdvancedOptions() {
+        const options = document.getElementById('advanced-options');
+        const arrow = document.getElementById('advanced-arrow');
+        options.classList.toggle('hidden');
+        arrow.classList.toggle('rotate-180');
+      }
+      
+      function updateConfidenceValue(val) {
+        document.getElementById('conf-value').textContent = val + '%';
+      }
+      
+      // Mostrar/ocultar controles de área
+      document.getElementById('process_areas').addEventListener('change', function() {
+        document.getElementById('area-inputs').classList.toggle('hidden', !this.checked);
+      });
+    </script>
+  </body>
+</html>

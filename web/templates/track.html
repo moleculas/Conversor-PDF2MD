@@ -1,0 +1,244 @@
+<!DOCTYPE html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Procesando PDF...</title>
+    <link rel="stylesheet" href="https://api.fontshare.com/v2/css?f[]=satoshi@1,900,700,500,300,400&display=swap" />
+    <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+    <style>
+      .font-satoshi {
+        font-family: 'Satoshi', sans-serif;
+      }
+      
+      @keyframes spin {
+        to { transform: rotate(360deg); }
+      }
+      .animate-spin {
+        animation: spin 1s linear infinite;
+      }
+      
+      .terminal {
+        font-family: 'Courier New', monospace;
+        background-color: #1a1a1a;
+        color: #f0f0f0;
+        border-radius: 6px;
+        padding: 12px;
+        overflow-y: auto;
+        height: 200px;
+        margin-top: 16px;
+        font-size: small;
+      }
+      
+      .terminal-log {
+        padding: 2px 0;
+        line-height: 1.4;
+        white-space: pre-wrap;
+        word-break: break-all;
+      }
+      
+      .log-info {
+        color: #94c5f8;
+      }
+      
+      .log-warning {
+        color: #f8d35e;
+      }
+      
+      .log-error {
+        color: #ff6b6b;
+      }
+      
+      .terminal-cursor {
+        display: inline-block;
+        width: 8px;
+        height: 18px;
+        background-color: #f0f0f0;
+        animation: blink 1s step-end infinite;
+        vertical-align: text-bottom;
+        margin-left: 2px;
+      }
+      
+      @keyframes blink {
+        0%, 100% { opacity: 1; }
+        50% { opacity: 0; }
+      }
+    </style>
+  </head>
+  <body class="bg-gray-50 font-satoshi">
+    <div class="max-w-3xl mx-auto p-6 md:p-8">
+      <header class="mb-8">
+        <h1 class="text-2xl font-bold text-gray-800">Procesando documento</h1>
+      </header>
+      
+      <div class="bg-white rounded-lg shadow-md p-6 mb-8">
+        <div class="flex flex-col items-center justify-center py-8">
+          <div class="animate-spin rounded-full h-16 w-16 border-t-4 border-b-4 border-blue-600 mb-4"></div>
+          <div id="status-text" class="text-lg font-medium text-gray-800 mb-2">
+            Procesando el documento...
+          </div>
+          <div class="bg-blue-50 border-l-4 border-blue-600 p-4 w-full max-w-lg">
+            <p class="text-sm text-blue-700">
+              El documento se está procesando. Esto puede tardar desde unos segundos hasta varios minutos
+              dependiendo del tamaño y complejidad del PDF. Esta página se actualizará automáticamente.
+            </p>
+          </div>
+          
+          <div class="terminal w-full max-w-lg">
+            <div id="log-container">
+              <div class="terminal-log">$ Iniciando procesamiento OCR...</div>
+            </div>
+            <div class="terminal-log" id="current-log-line">$ <span class="terminal-cursor"></span></div>
+          </div>
+          
+          <div id="error-container" class="bg-red-50 border-l-4 border-red-600 p-4 mt-4 w-full max-w-lg hidden">
+            <p class="text-sm text-red-700">
+              Se ha producido un error durante el procesamiento. <span id="error-message"></span>
+            </p>
+          </div>
+        </div>
+      </div>
+      
+      <div class="text-center">
+        <a href="/" class="inline-flex items-center text-sm text-blue-600 hover:text-blue-800">
+          <svg class="w-4 h-4 mr-1" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <path d="M15 18l-6-6 6-6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+          Volver al inicio
+        </a>
+      </div>
+    </div>
+    
+    <script>
+      // ID del trabajo que estamos monitorizando
+      const jobId = "{{ job_id }}";
+      // Banderas para controlar el estado
+      let isCompleted = false;
+      let hasError = false;
+      let lastLogIndex = 0;
+      
+      // Función para consultar el estado del trabajo
+      async function checkJobStatus() {
+        if (isCompleted || hasError) return;
+        
+        try {
+          const response = await fetch(`/api/status/${jobId}`);
+          const data = await response.json();
+          
+          // Actualizar la interfaz según el estado
+          updateUI(data);
+          
+          // Si el trabajo está completado o tiene error, dejar de consultar
+          if (data.status === 'completed') {
+            isCompleted = true;
+            // Esperar un momento para mostrar el mensaje de completado antes de redirigir
+            setTimeout(() => {
+              window.location.href = `/result/${jobId}`;
+            }, 1500);
+          } else if (data.status === 'error') {
+            hasError = true;
+            document.getElementById('error-container').classList.remove('hidden');
+            document.getElementById('error-message').textContent = data.message || 'Error desconocido';
+          } else {
+            // Seguir consultando cada 2 segundos
+            setTimeout(checkJobStatus, 2000);
+          }
+        } catch (error) {
+          console.error('Error al consultar el estado:', error);
+          // Reintentamos tras un tiempo en caso de error de conexión
+          setTimeout(checkJobStatus, 5000);
+        }
+      }
+      
+      // Función para actualizar los logs del trabajo
+      async function updateJobLogs() {
+        if (isCompleted || hasError) return;
+        
+        try {
+          const response = await fetch(`/api/logs/${jobId}`);
+          const data = await response.json();
+          const logs = data.logs || [];
+          
+          // Actualizar la terminal con los logs nuevos
+          if (logs.length > 0) {
+            const logContainer = document.getElementById('log-container');
+            
+            // Limpiar la línea de "Iniciando procesamiento" si es el primer log real
+            if (lastLogIndex === 0 && logContainer.childNodes.length === 1) {
+              logContainer.innerHTML = '';
+            }
+            
+            // Añadir solo los logs nuevos
+            for (let i = lastLogIndex; i < logs.length; i++) {
+              const log = logs[i];
+              const logElement = document.createElement('div');
+              logElement.className = 'terminal-log';
+              
+              // Determinar el tipo de log para aplicar el color
+              if (log.includes('[WARNING]')) {
+                logElement.classList.add('log-warning');
+              } else if (log.includes('[ERROR]')) {
+                logElement.classList.add('log-error');
+              } else {
+                logElement.classList.add('log-info');
+              }
+              
+              logElement.textContent = log;
+              logContainer.appendChild(logElement);
+            }
+            
+            // Actualizar el índice del último log procesado
+            lastLogIndex = logs.length;
+            
+            // Scroll al final de la terminal
+            const terminal = document.querySelector('.terminal');
+            terminal.scrollTop = terminal.scrollHeight;
+          }
+          
+          // Actualizar los logs cada 1 segundo
+          if (!isCompleted && !hasError) {
+            setTimeout(updateJobLogs, 1000);
+          }
+        } catch (error) {
+          console.error('Error al obtener logs:', error);
+          // Reintentamos tras un tiempo en caso de error
+          setTimeout(updateJobLogs, 3000);
+        }
+      }
+      
+      // Función para actualizar la interfaz según el estado
+      function updateUI(data) {
+        const statusText = document.getElementById('status-text');
+        const currentLogLine = document.getElementById('current-log-line');
+        
+        switch(data.status) {
+          case 'pending':
+            statusText.textContent = 'En cola para procesamiento...';
+            currentLogLine.innerHTML = '$ Esperando en cola... <span class="terminal-cursor"></span>';
+            break;
+          case 'processing':
+            statusText.textContent = 'Procesando el documento...';
+            currentLogLine.innerHTML = '$ Procesando... <span class="terminal-cursor"></span>';
+            break;
+          case 'completed':
+            statusText.textContent = '¡Procesamiento completado!';
+            currentLogLine.innerHTML = '$ Proceso completado ✓';
+            break;
+          case 'error':
+            statusText.textContent = 'Error en el procesamiento';
+            currentLogLine.innerHTML = '$ Error en el proceso ✗';
+            break;
+          default:
+            statusText.textContent = `Estado: ${data.status}`;
+            currentLogLine.innerHTML = `$ ${data.status}... <span class="terminal-cursor"></span>`;
+        }
+      }
+      
+      // Iniciar la consulta del estado y logs cuando carga la página
+      document.addEventListener('DOMContentLoaded', () => {
+        checkJobStatus();
+        updateJobLogs();
+      });
+    </script>
+  </body>
+</html>

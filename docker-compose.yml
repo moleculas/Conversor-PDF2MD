@@ -1,0 +1,34 @@
+services:
+  transcriber:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    volumes:
+      - transcriber-data:/data
+      - ./jobs:/app/jobs
+    environment:
+      - JOBS_DIR=/app/jobs
+    ports:
+      - "5526:5001"
+
+  web:
+    build:
+      context: .
+      dockerfile: Dockerfile.web
+    environment:
+      UPLOAD_DIR: "/app/uploads"
+      OCR_URL: "http://transcriber:5001/process"
+      STATUS_URL_BASE: "http://transcriber:5001/status/"
+      RESULT_URL_BASE: "http://transcriber:5001/result/"
+      LOGS_URL_BASE: "http://transcriber:5001/logs/"  # Añadimos esta línea
+    volumes:
+      - ./web:/app
+      - ./web/uploads:/app/uploads
+      - ./web/static:/app/static
+    ports:
+      - "8000:8000"
+    depends_on:
+      - transcriber
+
+volumes:
+  transcriber-data:

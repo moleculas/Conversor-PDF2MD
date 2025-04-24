@@ -5,7 +5,7 @@ import time
 import json
 from urllib.parse import urljoin
 
-from fastapi import FastAPI, File, UploadFile, Request, Form
+from fastapi import FastAPI, File, UploadFile, Request, Form, HTTPException
 from fastapi.responses import HTMLResponse, FileResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
@@ -53,6 +53,7 @@ async def convert(
     area_bottom: Optional[int] = Form(0)
 ):
     # 1) Guardamos el PDF en disco con un nombre único
+    original_filename = pdf.filename  # Guardar el nombre original del archivo
     pdf_filename = f"{uuid.uuid4()}.pdf"
     pdf_path = os.path.join(UPLOAD_DIR, pdf_filename)
     with open(pdf_path, "wb") as f:
@@ -62,7 +63,8 @@ async def convert(
     params = {
         "dpi": dpi,
         "conf_threshold": conf_threshold,
-        "lang": lang
+        "lang": lang,
+        "original_filename": original_filename  # Añadimos el nombre original
     }
     
     # Añadir área si está habilitada
@@ -90,6 +92,7 @@ async def convert(
     # Guardar en el diccionario de trabajos activos
     active_jobs[job_id] = {
         "pdf_filename": pdf_filename,
+        "original_filename": original_filename,  # Guardamos el nombre original
         "pdf_path": pdf_path,
         "status": "pending",
         "created_at": time.time(),
@@ -168,9 +171,24 @@ async def show_result(request: Request, job_id: str):
             "area": None
         })
         
+        # Obtener el nombre original del archivo (si está disponible)
+        original_filename = None
+        if job_id in active_jobs:
+            original_filename = active_jobs[job_id].get("original_filename")
+        if not original_filename and params.get("original_filename"):
+            original_filename = params.get("original_filename")
+        
+        # Generar nombre del archivo Markdown basado en el nombre original
+        if original_filename:
+            # Quitar la extensión .pdf si existe y añadir _convert.md
+            if original_filename.lower().endswith('.pdf'):
+                original_filename = original_filename[:-4]
+            md_filename = f"{original_filename}_convert.md"
+        else:
+            # Si no tenemos el nombre original, usamos el ID del trabajo
+            md_filename = f"{job_id}.md"
+        
         # Guardar el markdown en disco para poder descargarlo luego
-        # Usamos el mismo ID de trabajo para el nombre del archivo
-        md_filename = f"{job_id}.md"
         md_path = os.path.join(UPLOAD_DIR, md_filename)
         with open(md_path, "w", encoding="utf-8") as f:
             f.write(md_text)
@@ -181,8 +199,9 @@ async def show_result(request: Request, job_id: str):
             {
                 "request": request,
                 "markdown": md_text,
-                "download_link": f"/uploads/{md_filename}",
-                "params": params
+                "download_link": f"/download/{md_filename}",
+                "params": params,
+                "original_filename": original_filename
             },
         )
         
@@ -197,9 +216,15 @@ async def show_result(request: Request, job_id: str):
 
 @app.get("/download/{md_filename}")
 async def download(md_filename: str):
+    """Endpoint para descargar el archivo Markdown."""
     md_path = os.path.join(UPLOAD_DIR, md_filename)
+    if not os.path.exists(md_path):
+        raise HTTPException(status_code=404, detail="Archivo no encontrado")
+    
+    # Usar el parámetro 'attachment' para forzar la descarga en lugar de mostrar en el navegador
     return FileResponse(
         md_path,
         media_type="text/markdown",
         filename=md_filename,
+        headers={"Content-Disposition": f"attachment; filename={md_filename}"}
     )

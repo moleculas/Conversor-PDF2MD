@@ -197,7 +197,8 @@ async def process_pdf(
     dpi: int = Form(300),
     conf_threshold: int = Form(60),
     lang: str = Form("spa"),
-    area: Optional[str] = Form(None)
+    area: Optional[str] = Form(None),
+    original_filename: Optional[str] = Form(None)  # Nuevo parámetro para el nombre original
 ):
     """Inicia un nuevo trabajo de procesamiento de PDF."""
     # Generar ID único para el trabajo
@@ -242,7 +243,8 @@ async def process_pdf(
             "dpi": dpi,
             "conf_threshold": conf_threshold,
             "lang": lang,
-            "area": area_coords
+            "area": area_coords,
+            "original_filename": original_filename  # Guardamos el nombre original
         }
     }
     

@@ -1,0 +1,4 @@
+# Ignorar carpetas de entrada, salida y subidas
+/input/
+/output/
+/web/uploads/
